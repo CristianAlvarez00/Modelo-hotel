@@ -44,6 +44,39 @@ Modelo-hotel/
 └── README.md
 ```
 
+## Cómo ejecutar la Fase 1
+
+El notebook está en `fase-1/modelo_hotel.ipynb`. Descarga el dataset automáticamente desde este repositorio público, por lo que necesita conexión a internet. Hay tres formas de ejecutarlo:
+
+### Opción 1: Google Colab
+Abrir el notebook en Colab y usar *Entorno de ejecución → Ejecutar todas*. No requiere instalación.
+
+### Opción 2: Docker (recomendada, reproducible)
+Requiere Docker instalado y abierto.
+
+```bash
+git clone https://github.com/CristianAlvarez00/Modelo-hotel.git
+cd Modelo-hotel
+git checkout develop
+docker build -t modelo-hotel .
+docker run --rm -p 8888:8888 modelo-hotel
+```
+
+Abrir en el navegador el enlace con `token` que aparece en la terminal, abrir `modelo_hotel.ipynb` y ejecutar todas las celdas. El modelo se guarda como `modelo_hotel.joblib` dentro del contenedor.
+
+### Opción 3: Entorno local
+```bash
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+source .venv/bin/activate       # Linux / Mac
+pip install -r fase-1/requirements.txt
+pip install notebook
+cd fase-1
+jupyter notebook modelo_hotel.ipynb
+```
+
+Las versiones de `fase-1/requirements.txt` son las del entorno de Colab con el que se entrenó el modelo. Con otras versiones de scikit-learn, el archivo `.joblib` no carga.
+
 ## Metodología
 
 ### 1. Análisis exploratorio
