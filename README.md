@@ -122,12 +122,38 @@ Matriz de confusión:
 | **Real: no cancela** | 10.844 | 4.753 |
 | **Real: cancela** | 1.807 | 6.983 |
 
-### Interpretación
-- **¿Mejora al modelo base?** Sí. El modelo base no detecta ninguna cancelación (F1 = 0); el modelo final detecta 6.983 de las 8.790 cancelaciones reales (recall 0,794).
-- **¿La métrica es razonable?** El F1 de prueba (0,680) es consistente con el de validación (0,675), lo que indica que no hay sobreajuste evidente ni fuga de información. Es un resultado moderado, esperable al no usar variables posteriores a la reserva.
-- **Costo del umbral:** se generan 4.753 falsas alarmas; el umbral 0,30 favorece detectar más cancelaciones a cambio de menor precisión.
-- **Dificultades:** desbalance de clases, alto porcentaje de nulos en `agent`/`company`, filas idénticas sin identificador y riesgo de fuga en variables como `deposit_type` y `adr`.
-- **Posibles mejoras:** tratar valores extremos, crear variables nuevas (p. ej. noches totales, fecha de llegada), evaluar modelos de boosting, ajustar hiperparámetros con validación cruzada por grupos, y estudiar si `deposit_type` puede usarse legítimamente según el momento de predicción.
+## Conclusiones
+
+### Comparación con el modelo base (Dummy)
+El modelo base (`DummyClassifier`, siempre predice "no cancela") sirve de referencia mínima.
+
+| Modelo | Conjunto | Accuracy | Precisión | Recall | F1 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Dummy (clase más frecuente) | Validación | 0,630 | 0,000 | 0,000 | 0,000 |
+| Regresión logística, umbral 0,30 | Validación | 0,729 | 0,607 | 0,760 | 0,675 |
+| Regresión logística, umbral 0,30 | Prueba | 0,731 | 0,595 | 0,794 | 0,680 |
+
+- **El modelo sí mejora al base.** El Dummy nunca detecta una cancelación (recall y F1 = 0), así que su accuracy de 0,63 solo refleja la proporción de la clase mayoritaria. El modelo final detecta 6.983 de las 8.790 cancelaciones reales de prueba (recall 0,794) y obtiene F1 = 0,680.
+- **Accuracy vs. F1.** En prueba el Dummy alcanzaría un accuracy de ≈ 0,640 (63,96 % de reservas no canceladas) frente a 0,731 del modelo: la mejora en accuracy es de ≈ 9 puntos, pero la diferencia real está en que el modelo identifica cancelaciones. Por eso se eligió F1 como métrica principal.
+- **Estabilidad.** El F1 de prueba (0,680) es casi igual al de validación (0,675), lo que indica que el modelo generaliza y que no hay señales de fuga de información ni sobreajuste.
+- **Frente a otros modelos.** La regresión logística tuvo el mayor F1 (0,643 con umbral 0,5) frente al árbol (0,597) y Random Forest (0,553). Estos dos últimos son más precisos (0,828 y 0,881) pero detectan menos cancelaciones (recall 0,466 y 0,403) con la configuración probada.
+- **¿Es razonable la métrica?** Sí, para una primera versión que usa únicamente información conocida al registrar la reserva. No es un resultado excelente: con un umbral de 0,30 aproximadamente 4 de cada 10 alertas de cancelación son falsas (precisión 0,595).
+
+### Dificultades
+- **Desbalance de clases** (63 % / 37 %), que hace engañoso el accuracy.
+- **Filas idénticas (26,8 %) sin identificador de reserva:** no se pudo confirmar si eran duplicados, y una separación aleatoria habría puesto copias en entrenamiento y prueba. Se resolvió con separación por grupos.
+- **Riesgo de fuga de información:** variables como `deposit_type`, `adr`, `booking_changes` o `assigned_room_type` pueden reflejar información posterior a la reserva. Excluirlas reduce el rendimiento, pero mantiene la evaluación honesta (`deposit_type` es muy informativa: 99,4 % de las reservas `Non Refund` se cancelan).
+- **Valores faltantes y de alta cardinalidad:** `company` (94 %) y `agent` (14 %) con muchos nulos y usados como identificadores; `country` con muchas categorías.
+- **Valores extremos** (`adr` hasta 5.400, `adults` hasta 55, `lead_time` hasta 737) que no se trataron en esta versión.
+- **Trade-off precisión/recall:** bajar el umbral a 0,30 mejora la detección de cancelaciones, pero genera 4.753 falsas alarmas.
+
+### Posibles mejoras
+- Tratar valores extremos (recorte o transformación) y crear variables nuevas: noches totales, número total de huéspedes, día de la semana o fecha de llegada.
+- Probar modelos de boosting (Gradient Boosting, XGBoost, LightGBM) y ajustar hiperparámetros con validación cruzada por grupos, en lugar de un único conjunto de validación.
+- Comparar modelos con métricas independientes del umbral (ROC-AUC, PR-AUC) y elegir el umbral según el costo real de una falsa alarma frente a una cancelación no detectada.
+- Evaluar si `deposit_type` puede usarse legítimamente, según el momento en que se realice la predicción.
+- Reducir la cardinalidad de `country` (agrupar países poco frecuentes) y probar una versión con menos variables para comparar.
+- Analizar la importancia de variables y los errores del modelo para interpretar mejor qué reservas se confunden.
 
 ## Instrucciones para ejecutar el notebook
 
