@@ -28,23 +28,23 @@ def referencia_codigo() -> str:
 
 
 def entrenar(data: Path, target: str, output_dir: Path, version: str, seed: int) -> Path:
-    """Entrena y crea una versión nueva; jamás sustituye una existente."""
+    """Entrena y crea una version nueva; nunca sustituye una existente."""
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", version):
-        raise ValueError("La versión debe usar letras, números, punto, guion o guion bajo.")
-    destino = output_dir / version
-    if destino.exists():
-        raise FileExistsError(f"La versión '{version}' ya existe: {destino}")
+        raise ValueError("La version debe usar letras, numeros, punto, guion o guion bajo.")
+    destino = output_dir / version  # crea ruta de salida para esta version
+    if destino.exists():  # evita sobrescribir una version que ya existe
+        raise FileExistsError(f"La version '{version}' ya existe: {destino}")
 
-    entradas, etiquetas = cargar_datos(data, target)
-    x_train, x_test, y_train, y_test, n_grupos = separar_grupos(entradas, etiquetas, seed)
+    entradas, etiquetas = cargar_datos(data, target)  # carga datos y objetivo
+    x_train, x_test, y_train, y_test, n_grupos = separar_grupos(entradas, etiquetas, seed)  # separa train y test por grupos
 
-    pipeline = crear_pipeline(seed)
-    pipeline.fit(x_train, y_train)  # Preprocesamiento se ajusta solo aquí.
-    pred_modelo = aplicar_umbral(pipeline.predict_proba(x_test)[:, 1])
+    pipeline = crear_pipeline(seed)  # crea pipeline con preprocesamiento y modelo
+    pipeline.fit(x_train, y_train)  # ajusta el preprocesamiento y el modelo
+    pred_modelo = aplicar_umbral(pipeline.predict_proba(x_test)[:, 1])  # genera predicciones del modelo
 
-    baseline = crear_baseline()
-    baseline.fit(x_train, y_train)
-    pred_baseline = baseline.predict(x_test)
+    baseline = crear_baseline()  # crea baseline simple
+    baseline.fit(x_train, y_train)  # entrena baseline con train
+    pred_baseline = baseline.predict(x_test)  # genera predicciones del baseline
     metricas = {
         "conjunto": "prueba",
         "modelo": calcular_metricas(y_test, pred_modelo),
@@ -96,18 +96,18 @@ def entrenar(data: Path, target: str, output_dir: Path, version: str, seed: int)
         "version": version,
     }
 
-    destino.mkdir(parents=True, exist_ok=False)
-    joblib.dump(artefacto, destino / "modelo.joblib")
+    destino.mkdir(parents=True, exist_ok=False)  # crea carpeta de la version
+    joblib.dump(artefacto, destino / "modelo.joblib")  # guarda modelo entrenado
     for nombre, contenido in (("metrics.json", metricas), ("metadata.json", metadata)):
         (destino / nombre).write_text(
             json.dumps(contenido, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-        )
-    print(f"Versión {version}: {len(x_train)} filas de entrenamiento, {len(x_test)} de prueba")
+        )  # guarda resultados y metadatos
+    print(f"Version {version}: {len(x_train)} filas de entrenamiento, {len(x_test)} de prueba")  # muestra resumen del entrenamiento
     for nombre in ("modelo", "baseline"):
         valores = metricas[nombre]
-        print(f"{nombre}: " + ", ".join(f"{k}={v:.3f}" for k, v in valores.items()))
+        print(f"{nombre}: " + ", ".join(f"{k}={v:.3f}" for k, v in valores.items()))  # imprime metricas
     for nombre in ("modelo.joblib", "metrics.json", "metadata.json"):
-        print(f"Guardado: {destino / nombre}")
+        print(f"Guardado: {destino / nombre}")  # confirma archivos creados
     return destino
 
 
