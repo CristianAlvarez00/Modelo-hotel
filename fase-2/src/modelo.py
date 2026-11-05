@@ -50,6 +50,3 @@ def calcular_metricas(reales, predichas) -> dict[str, float]:
         "recall": float(recall_score(reales, predichas, zero_division=0)),
         "f1": float(f1_score(reales, predichas, zero_division=0)),
     }  # devuelve metricas de clasificacion
-#Selecciona las columnas de entrada.
-
-
