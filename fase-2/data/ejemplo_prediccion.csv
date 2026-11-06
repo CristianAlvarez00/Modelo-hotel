@@ -1,0 +1,9 @@
+lead_time,stays_in_weekend_nights,stays_in_week_nights,adults,children,babies,is_repeated_guest,previous_cancellations,previous_bookings_not_canceled,hotel,arrival_date_month,meal,country,market_segment,distribution_channel,reserved_room_type,customer_type
+161,0,2,2,0.0,0,0,0,0,City Hotel,May,BB,PRT,Groups,TA/TO,A,Transient
+316,0,2,2,0.0,0,0,0,0,City Hotel,May,BB,PRT,Groups,TA/TO,A,Transient
+134,2,4,2,0.0,0,0,0,0,Resort Hotel,January,BB,POL,Online TA,TA/TO,H,Transient-Party
+21,0,2,2,0.0,0,0,0,0,Resort Hotel,August,HB,ESP,Online TA,TA/TO,E,Transient
+6,0,2,2,0.0,0,0,0,0,Resort Hotel,February,BB,FRA,Online TA,TA/TO,A,Transient
+335,0,3,1,0.0,0,0,0,0,City Hotel,October,BB,FRA,Offline TA/TO,TA/TO,A,Transient-Party
+,0,2,2,0.0,0,0,0,0,City Hotel,May,BB,PRT,Groups,TA/TO,A,Transient
+21,0,2,2,0.0,0,0,0,0,Resort Hotel,August,HB,XXX,Online TA,TA/TO,E,Transient
