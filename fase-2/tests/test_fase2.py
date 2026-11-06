@@ -1,5 +1,3 @@
-"""Cinco pruebas obligatorias de Fase 2 y algunas de contrato de predicción."""
-
 import hashlib
 import json
 import sys

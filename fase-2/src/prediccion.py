@@ -1,7 +1,4 @@
 """Carga de modelos versionados, validación de entradas y predicción por lotes.
-
-Nada aquí entrena ni reajusta transformaciones: el pipeline guardado ya contiene
-imputación, codificación y escalamiento ajustados solo con entrenamiento.
 """
 
 import os
@@ -61,9 +58,6 @@ def leer_csv(ruta: Path) -> pd.DataFrame:
 
 def validar_entradas(datos: pd.DataFrame, objetivo: str) -> tuple[pd.DataFrame, list[str]]:
     """Devuelve las 17 entradas en el orden del modelo y una lista de advertencias.
-
-    Políticas: el orden de columnas no importa; el objetivo se ignora si viene;
-    otras columnas extra se descartan con aviso; los nulos se dejan al imputador.
     """
     if datos.empty:
         raise ErrorPrediccion("El CSV de entrada no contiene observaciones.")
