@@ -1,0 +1,96 @@
+{
+  "version": "v1",
+  "creado_utc": "2026-11-05T15:26:53.183896+00:00",
+  "problema": "clasificacion_binaria",
+  "objetivo": "is_canceled",
+  "algoritmo": "LogisticRegression",
+  "columnas": [
+    "lead_time",
+    "stays_in_weekend_nights",
+    "stays_in_week_nights",
+    "adults",
+    "children",
+    "babies",
+    "is_repeated_guest",
+    "previous_cancellations",
+    "previous_bookings_not_canceled",
+    "hotel",
+    "arrival_date_month",
+    "meal",
+    "country",
+    "market_segment",
+    "distribution_channel",
+    "reserved_room_type",
+    "customer_type"
+  ],
+  "tipos_esperados": {
+    "lead_time": "numerico",
+    "stays_in_weekend_nights": "numerico",
+    "stays_in_week_nights": "numerico",
+    "adults": "numerico",
+    "children": "numerico",
+    "babies": "numerico",
+    "is_repeated_guest": "numerico",
+    "previous_cancellations": "numerico",
+    "previous_bookings_not_canceled": "numerico",
+    "hotel": "texto",
+    "arrival_date_month": "texto",
+    "meal": "texto",
+    "country": "texto",
+    "market_segment": "texto",
+    "distribution_channel": "texto",
+    "reserved_room_type": "texto",
+    "customer_type": "texto"
+  },
+  "semilla": 42,
+  "umbral": 0.3,
+  "origen_umbral": "Fase 1: mejor F1 en validacion; fijo antes de prueba",
+  "datos": {
+    "archivo": "data/hotel_bookings.csv",
+    "observaciones": 119390,
+    "grupos": 79243
+  },
+  "particion": {
+    "metodo": "GroupShuffleSplit sobre hash de las 17 entradas",
+    "test_size_grupos": 0.2,
+    "filas_entrenamiento": 95003,
+    "filas_prueba": 24387
+  },
+  "metrica_principal": "f1",
+  "metricas": {
+    "conjunto": "prueba",
+    "modelo": {
+      "accuracy": 0.7307171853856563,
+      "precision": 0.5947166595654026,
+      "recall": 0.7939704209328783,
+      "f1": 0.6800487210718635
+    },
+    "baseline": {
+      "accuracy": 0.6395620617542133,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    }
+  },
+  "parametros": {
+    "regresion_logistica": {
+      "max_iter": 1000,
+      "random_state": 42
+    },
+    "baseline": {
+      "strategy": "most_frequent"
+    },
+    "imputacion_numerica": "median",
+    "imputacion_categorica": "Desconocido",
+    "codificacion": "OneHotEncoder(handle_unknown='ignore')",
+    "escalamiento": "StandardScaler"
+  },
+  "entorno": {
+    "python": "3.12.14",
+    "pandas": "2.2.3",
+    "scikit_learn": "1.6.1",
+    "joblib": "1.6.0",
+    "requirements": "fase-2/requirements.txt (pendiente Persona 3)"
+  },
+  "codigo_sha256": "63cf06f588490e72635ab4543f93283ba2c5a1b9165038b54f4c5320c43a74e1"
+}
