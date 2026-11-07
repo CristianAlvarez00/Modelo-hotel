@@ -1,2 +1,17 @@
 .ipynb_checkpoints/
 __pycache__/
+*.pyc
+
+# entornos virtuales
+.venv/
+venv/
+env/
+
+# fase-2
+fase-2/outputs/*
+!fase-2/outputs/.gitkeep
+.pytest_cache/
+*.tmp
+
+# modelos de prueba locales (solo v1/v2 reales se versionan)
+fase-2/models/v-docker/
