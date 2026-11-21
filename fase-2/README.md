@@ -57,7 +57,7 @@ No entrena durante el build. `models/` y `outputs/` persisten en el host (verifi
 ```bash
 python -m pytest -v
 ```
-8 pruebas, sin red (datos sintéticos). Cubren: artefactos de entrenamiento, consistencia lote/fila, nulos, columna ausente, dos versiones sin sobrescritura, columnas reordenadas/extra, categoría nueva, texto inválido.
+14 casos, sin red (datos sintéticos). Cubren: artefactos de entrenamiento, consistencia lote/fila, nulos, columna ausente, dos versiones sin sobrescritura, columnas reordenadas/extra, categoría nueva, texto inválido.
 
 ## Métricas (v1, prueba)
 
@@ -68,5 +68,78 @@ python -m pytest -v
 
 ## Notas
 
-- Warning esperado al entrenar: `OptimizeWarning: Unknown solver options: iprint` (scikit-learn 1.6.1), no afecta las métricas.
+- Se fijó SciPy 1.14.1; el entrenamiento real de las correcciones terminó sin el aviso de `iprint`.
 - Limitaciones del dataset (duplicados, valores extremos, alcance a 2 hoteles): ver README raíz.
+## Correcciones de la evaluación de Fase 2
+
+Entorno local comprobado: Python 3.12.14. El Dockerfile usa Python 3.12.
+Se fijó SciPy 1.14.1 para usar una versión compatible con el optimizador de
+scikit-learn 1.6.1. La instalación sigue siendo `pip install -r requirements.txt`.
+
+La partición ahora se configura con `--test-size` (0.20 por defecto). Es la
+proporción de **grupos**, por lo que la proporción de filas puede variar. Se
+mantienen la separación de entradas idénticas y el umbral 0.30.
+
+```bash
+python train.py --help
+python predict.py --help
+python train.py --data ../data/hotel_bookings.csv --target is_canceled --output-dir models --version v-nueva --seed 42 --test-size 0.20
+python predict.py --version v2 --input data/ejemplo_prediccion.csv --output outputs/predicciones-v2.csv
+```
+
+Se conservan `models/v1/` y `models/v2/`, cada una con los tres archivos. `v2`
+usa los mismos datos, semilla 42 y proporción 0.20; no representa un intento
+por mejorar la métrica. Las diferencias numéricas pequeñas se pueden deber al
+entorno. `v1` conserva sus metadatos históricos, incluida la referencia que
+entonces decía que requirements estaba pendiente.
+
+## Esquema de las 17 entradas
+
+Todas las columnas son obligatorias. Una celda vacía se admite y se imputa con
+las reglas del pipeline: mediana para números, `Desconocido` para categorías.
+La mediana y la escala se aprenden solo con entrenamiento. Los números deben
+ser finitos y las categorías texto. Una categoría nueva se codifica en ceros;
+las columnas extra se ignoran con aviso. El objetivo no es necesario al predecir.
+
+| Columna | Tipo | Significado |
+| --- | --- | --- |
+| lead_time | Número | Días de anticipación de la reserva |
+| stays_in_weekend_nights | Número | Noches de fin de semana |
+| stays_in_week_nights | Número | Noches entre semana |
+| adults | Número | Adultos |
+| children | Número | Niños |
+| babies | Número | Bebés |
+| is_repeated_guest | Número | Huésped repetido, 0 o 1 |
+| previous_cancellations | Número | Cancelaciones anteriores |
+| previous_bookings_not_canceled | Número | Reservas anteriores no canceladas |
+| hotel | Texto | Tipo de hotel |
+| arrival_date_month | Texto | Mes de llegada |
+| meal | Texto | Régimen de comidas |
+| country | Texto | País |
+| market_segment | Texto | Segmento de mercado |
+| distribution_channel | Texto | Canal de distribución |
+| reserved_room_type | Texto | Habitación reservada |
+| customer_type | Texto | Tipo de cliente |
+
+La salida conserva el orden de filas, incluye `prediccion` (1 = cancelación
+predicha, 0 = no cancelación) y `probabilidad_cancelacion`.
+
+## Identificación y evidencia
+
+La entrega evaluada fue `fd250f91b93e659703d50a786c6484a470322d76`, integrada
+mediante el PR #14. Las correcciones actuales aún necesitan su propio commit/PR.
+Los metadatos nuevos guardan `codigo_commit_base` y `codigo_sha256`; la huella
+identifica los archivos de entrenamiento incluso si hay cambios sin commit.
+También guardan la huella del CSV y las versiones de librerías usadas.
+La huella de `v1` corresponde al código original; añadir comentarios después
+no cambia el modelo ya guardado.
+
+Las comprobaciones de corrección están en `evidencia/validacion.json`: creación
+de v2 con el CSV completo, carga de ambas versiones, predicción con el ejemplo
+y rechazo de una versión repetida sin cambios en los archivos. Para repetirlo
+use otro identificador y una salida nueva. La suite original se conserva y se
+agregan pruebas para la proporción configurable y sus límites.
+
+La afirmación anterior sobre Docker corresponde a la entrega original. Docker
+no está instalado en el equipo donde se hicieron estas correcciones; la Persona 3
+debe repetir el build y los comandos con montajes antes del cierre siguiente.
