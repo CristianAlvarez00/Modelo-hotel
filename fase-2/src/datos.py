@@ -64,13 +64,15 @@ def cargar_datos(ruta: Path, objetivo: str) -> tuple[pd.DataFrame, pd.Series]:
 
 
 def separar_grupos(
-    entradas: pd.DataFrame, etiquetas: pd.Series, semilla: int
+    entradas: pd.DataFrame, etiquetas: pd.Series, semilla: int, test_size: float = TEST_SIZE
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, int]:
     """Separa grupos de entradas idénticas antes de ajustar transformaciones."""
+    if not 0 < test_size < 1:
+        raise ValueError("La proporción de prueba debe estar entre 0 y 1, sin incluirlos.")
     grupos = pd.util.hash_pandas_object(entradas, index=False)
     if grupos.nunique() < 2:
         raise ValueError("Se requieren al menos dos grupos de entradas diferentes.")
-    separador = GroupShuffleSplit(n_splits=1, test_size=TEST_SIZE, random_state=semilla)  # Crea el separador con una semilla fija.
+    separador = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=semilla)  # Crea el separador con una semilla fija.
     indices_train, indices_test = next(separador.split(entradas, etiquetas, groups=grupos))  # Genera índices de entrenamiento y prueba por grupo.
     x_train, x_test = entradas.iloc[indices_train].copy(), entradas.iloc[indices_test].copy()  # Separar las entradas de entrenamiento y prueba.
     y_train, y_test = etiquetas.iloc[indices_train].copy(), etiquetas.iloc[indices_test].copy()  # Separar las etiquetas de entrenamiento y prueba.

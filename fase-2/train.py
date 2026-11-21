@@ -8,9 +8,12 @@ from pathlib import Path
 import platform
 import re
 import sys
+import subprocess
 
 import joblib
 import pandas as pd
+import numpy as np
+import scipy
 import sklearn
 
 from src.datos import CATEGORICAS, COLUMNAS, NUMERICAS, TEST_SIZE, cargar_datos, separar_grupos
@@ -27,7 +30,21 @@ def referencia_codigo() -> str:
     return huella.hexdigest()
 
 
-def entrenar(data: Path, target: str, output_dir: Path, version: str, seed: int) -> Path:
+def commit_base() -> str | None:
+    """El hash de fuentes identifica también cambios que aún no tienen commit."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent,
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def entrenar(
+    data: Path, target: str, output_dir: Path, version: str, seed: int,
+    test_size: float = TEST_SIZE,
+) -> Path:
     """Entrena y crea una version nueva; nunca sustituye una existente."""
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", version):
         raise ValueError("La version debe usar letras, numeros, punto, guion o guion bajo.")
@@ -36,7 +53,7 @@ def entrenar(data: Path, target: str, output_dir: Path, version: str, seed: int)
         raise FileExistsError(f"La version '{version}' ya existe: {destino}")
 
     entradas, etiquetas = cargar_datos(data, target)  # carga datos y objetivo
-    x_train, x_test, y_train, y_test, n_grupos = separar_grupos(entradas, etiquetas, seed)  # separa train y test por grupos
+    x_train, x_test, y_train, y_test, n_grupos = separar_grupos(entradas, etiquetas, seed, test_size)  # separa train y test por grupos
 
     pipeline = crear_pipeline(seed)  # crea pipeline con preprocesamiento y modelo
     pipeline.fit(x_train, y_train)  # ajusta el preprocesamiento y el modelo
@@ -65,14 +82,14 @@ def entrenar(data: Path, target: str, output_dir: Path, version: str, seed: int)
         "datos": {"archivo": str(data), "observaciones": len(entradas), "grupos": n_grupos},
         "particion": {
             "metodo": "GroupShuffleSplit sobre hash de las 17 entradas",
-            "test_size_grupos": TEST_SIZE,
+            "test_size_grupos": test_size,
             "filas_entrenamiento": len(x_train),
             "filas_prueba": len(x_test),
         },
         "metrica_principal": "f1",
         "metricas": metricas,
         "parametros": {
-            "regresion_logistica": {"max_iter": MAX_ITER, "random_state": seed},
+            "regresion_logistica": pipeline.named_steps["modelo"].get_params(),
             "baseline": {"strategy": "most_frequent"},
             "imputacion_numerica": "median",
             "imputacion_categorica": "Desconocido",
@@ -82,11 +99,15 @@ def entrenar(data: Path, target: str, output_dir: Path, version: str, seed: int)
         "entorno": {
             "python": platform.python_version(),
             "pandas": pd.__version__,
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
             "scikit_learn": sklearn.__version__,
             "joblib": joblib.__version__,
-            "requirements": "fase-2/requirements.txt (pendiente Persona 3)",
+            "requirements": "fase-2/requirements.txt",
         },
         "codigo_sha256": referencia_codigo(),
+        "codigo_commit_base": commit_base(),
+        "datos_sha256": hashlib.sha256(data.read_bytes()).hexdigest(),
     }
     artefacto = {
         "pipeline": pipeline,
@@ -118,9 +139,11 @@ def main() -> int:
     parser.add_argument("--output-dir", required=True, type=Path, help="Carpeta de versiones")
     parser.add_argument("--version", required=True, help="Identificador nuevo, por ejemplo v1")
     parser.add_argument("--seed", type=int, default=42, help="Semilla de la partición (42)")
+    parser.add_argument("--test-size", type=float, default=TEST_SIZE,
+                        help="Proporción de grupos para prueba, entre 0 y 1 (0.20)")
     args = parser.parse_args()
     try:
-        entrenar(args.data, args.target, args.output_dir, args.version, args.seed)
+        entrenar(args.data, args.target, args.output_dir, args.version, args.seed, args.test_size)
     except (ValueError, FileExistsError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
