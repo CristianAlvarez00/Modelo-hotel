@@ -15,3 +15,8 @@ fase-2/outputs/*
 
 # modelos de prueba locales (solo v1/v2 reales se versionan)
 fase-2/models/v-docker/
+
+.DS_Store
+
+# Versiones generadas por los ensayos de la API
+fase-2/models/api-*/
