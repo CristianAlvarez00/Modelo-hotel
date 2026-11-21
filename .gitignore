@@ -17,3 +17,6 @@ fase-2/outputs/*
 fase-2/models/v-docker/
 
 .DS_Store
+
+# Versiones generadas por los ensayos de la API
+fase-2/models/api-*/

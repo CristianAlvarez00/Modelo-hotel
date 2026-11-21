@@ -54,7 +54,7 @@ def crear_app(config: Configuracion | None = None) -> FastAPI:
             "probabilidad_cancelacion": float(fila["probabilidad_cancelacion"]),
             "version": artefacto["version"],
         }
-        # Persona 2 puede leer estos valores en su middleware, sin analizar la respuesta.
+        # Datos disponibles para el registro de solicitudes.
         request.state.version = resultado["version"]
         request.state.prediccion = resultado["prediccion"]
         return resultado

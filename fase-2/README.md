@@ -1,105 +1,44 @@
-# Fase 2 – Predicción de cancelación de reservas (scripts y Docker)
+# Fase 2 – Predicción de cancelación de reservas
 
-Convierte el modelo de Fase 1 en una app de línea de comandos: entrenamiento, predicción, pruebas y Docker. Mismas 17 variables, mismo pipeline (imputación + One-Hot + escalado + regresión logística) y umbral `0.30`. Única diferencia respecto al notebook: aquí solo hay un split train/prueba (el ajuste de umbral ya se hizo en Fase 1 y quedó fijo).
+El entrenamiento y la predicción del notebook se ejecutan desde terminal.
+Se conservan las 17 variables, la separación por grupos, la regresión logística
+y el umbral 0.30 de Fase 1.
 
 ## Instalación
 
+Python 3.12, comprobado con 3.12.14. Desde la raíz:
+
 ```bash
 cd fase-2
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Datos
+## Entrenamiento y predicción
 
-- Entrenamiento: `../data/hotel_bookings.csv` (el mismo de Fase 1).
-- Predicción: CSV con las 17 columnas, sin `is_canceled`. Ejemplo en `data/ejemplo_prediccion.csv`. Orden de columnas libre; columnas extra se ignoran con aviso.
-
-## Entrenar
-
-```bash
-python train.py --data ../data/hotel_bookings.csv --target is_canceled \
-  --output-dir models --version v2 --seed 42
-```
-Crea `models/<version>/{modelo.joblib, metrics.json, metadata.json}`. Si la versión ya existe, falla sin modificar nada.
-
-## Predecir
-
-```bash
-python predict.py --version v1 --input data/ejemplo_prediccion.csv \
-  --output outputs/predicciones.csv
-```
-No sobrescribe sin `--overwrite`. Errores sin traza, código de salida 1, sin archivo de salida a medias.
-
-## Docker
-
-```bash
-docker build -t modelos-fase2:1.0 .
-
-# entrenar
-docker run --rm \
-  -v "$PWD/../data:/app/data:ro" -v "$PWD/models:/app/models" \
-  modelos-fase2:1.0 python train.py \
-  --data data/hotel_bookings.csv --target is_canceled \
-  --output-dir models --version v-docker --seed 42
-
-# predecir
-docker run --rm \
-  -v "$PWD/models:/app/models:ro" -v "$PWD/data:/app/data:ro" \
-  -v "$PWD/outputs:/app/outputs" \
-  modelos-fase2:1.0 python predict.py \
-  --version v1 --input data/ejemplo_prediccion.csv --output outputs/predicciones.csv
-```
-No entrena durante el build. `models/` y `outputs/` persisten en el host (verificado tras `--rm`).
-
-## Pruebas
-
-```bash
-python -m pytest -v
-```
-14 casos, sin red (datos sintéticos). Cubren: artefactos de entrenamiento, consistencia lote/fila, nulos, columna ausente, dos versiones sin sobrescritura, columnas reordenadas/extra, categoría nueva, texto inválido.
-
-## Métricas (v1, prueba)
-
-| Modelo | Accuracy | Precisión | Recall | F1 |
-|---|---:|---:|---:|---:|
-| Baseline (Dummy) | 0.640 | 0.000 | 0.000 | 0.000 |
-| Regresión logística | 0.731 | 0.595 | 0.794 | 0.680 |
-
-## Notas
-
-- Se fijó SciPy 1.14.1; el entrenamiento real de las correcciones terminó sin el aviso de `iprint`.
-- Limitaciones del dataset (duplicados, valores extremos, alcance a 2 hoteles): ver README raíz.
-## Correcciones de la evaluación de Fase 2
-
-Entorno local comprobado: Python 3.12.14. El Dockerfile usa Python 3.12.
-Se fijó SciPy 1.14.1 para usar una versión compatible con el optimizador de
-scikit-learn 1.6.1. La instalación sigue siendo `pip install -r requirements.txt`.
-
-La partición ahora se configura con `--test-size` (0.20 por defecto). Es la
-proporción de **grupos**, por lo que la proporción de filas puede variar. Se
-mantienen la separación de entradas idénticas y el umbral 0.30.
+Desde `fase-2/`:
 
 ```bash
 python train.py --help
 python predict.py --help
 python train.py --data ../data/hotel_bookings.csv --target is_canceled --output-dir models --version v-nueva --seed 42 --test-size 0.20
-python predict.py --version v2 --input data/ejemplo_prediccion.csv --output outputs/predicciones-v2.csv
+python predict.py --version v1 --input data/ejemplo_prediccion.csv --output outputs/predicciones.csv
 ```
 
-Se conservan `models/v1/` y `models/v2/`, cada una con los tres archivos. `v2`
-usa los mismos datos, semilla 42 y proporción 0.20; no representa un intento
-por mejorar la métrica. Las diferencias numéricas pequeñas se pueden deber al
-entorno. `v1` conserva sus metadatos históricos, incluida la referencia que
-entonces decía que requirements estaba pendiente.
+El CSV de entrenamiento está incluido en `../data/hotel_bookings.csv`.
+`--test-size` indica la proporción de grupos reservados para prueba; la proporción
+de filas puede variar. Se separan los datos antes de ajustar el pipeline.
 
-## Esquema de las 17 entradas
+Cada versión guarda `modelo.joblib`, `metrics.json` y `metadata.json` en
+`models/<version>/`. Una versión existente se rechaza sin modificar sus archivos.
+La salida de predicción tampoco se sobrescribe sin `--overwrite`.
 
-Todas las columnas son obligatorias. Una celda vacía se admite y se imputa con
-las reglas del pipeline: mediana para números, `Desconocido` para categorías.
-La mediana y la escala se aprenden solo con entrenamiento. Los números deben
-ser finitos y las categorías texto. Una categoría nueva se codifica en ceros;
-las columnas extra se ignoran con aviso. El objetivo no es necesario al predecir.
+## Entrada y salida
+
+El CSV de predicción no necesita `is_canceled`. Sus columnas pueden estar en
+cualquier orden y las adicionales se ignoran con aviso. Todas las columnas de
+esta tabla deben existir:
 
 | Columna | Tipo | Significado |
 | --- | --- | --- |
@@ -121,25 +60,65 @@ las columnas extra se ignoran con aviso. El objetivo no es necesario al predecir
 | reserved_room_type | Texto | Habitación reservada |
 | customer_type | Texto | Tipo de cliente |
 
-La salida conserva el orden de filas, incluye `prediccion` (1 = cancelación
-predicha, 0 = no cancelación) y `probabilidad_cancelacion`.
 
-## Identificación y evidencia
+Los números deben ser finitos y las categorías texto. Las celdas vacías se
+imputan con la mediana en numéricas y `Desconocido` en categóricas. Las medianas,
+la escala y las categorías se aprenden solo con entrenamiento. Las categorías
+nuevas se codifican en ceros.
 
-La entrega evaluada fue `fd250f91b93e659703d50a786c6484a470322d76`, integrada
-mediante el PR #14. Las correcciones actuales aún necesitan su propio commit/PR.
-Los metadatos nuevos guardan `codigo_commit_base` y `codigo_sha256`; la huella
-identifica los archivos de entrenamiento incluso si hay cambios sin commit.
-También guardan la huella del CSV y las versiones de librerías usadas.
-La huella de `v1` corresponde al código original; añadir comentarios después
-no cambia el modelo ya guardado.
+La salida conserva el orden y número de filas. Incluye `prediccion` (1 significa
+cancelación predicha, 0 no cancelación) y `probabilidad_cancelacion`.
 
-Las comprobaciones de corrección están en `evidencia/validacion.json`: creación
-de v2 con el CSV completo, carga de ambas versiones, predicción con el ejemplo
-y rechazo de una versión repetida sin cambios en los archivos. Para repetirlo
-use otro identificador y una salida nueva. La suite original se conserva y se
-agregan pruebas para la proporción configurable y sus límites.
+## Versiones y resultados
 
-La afirmación anterior sobre Docker corresponde a la entrega original. Docker
-no está instalado en el equipo donde se hicieron estas correcciones; la Persona 3
-debe repetir el build y los comandos con montajes antes del cierre siguiente.
+Se incluyen `models/v1/` y `models/v2/`. Ambas usan semilla 42, los mismos datos
+y proporción 0.20. v2 se creó para completar el versionamiento; no se cambió
+el modelo para buscar una mejora.
+
+| Modelo en prueba | Accuracy | Precisión | Recall | F1 |
+| --- | ---: | ---: | ---: | ---: |
+| Dummy | 0.640 | 0.000 | 0.000 | 0.000 |
+| Regresión logística, v1 y v2 | 0.731 | 0.595 | 0.794 | 0.680 |
+
+Se comprobó el recorrido desde una copia limpia: entrenamiento con el CSV
+completo (95.003 filas de entrenamiento y 24.387 de prueba), carga y predicción
+con ambas versiones y rechazo de un identificador repetido sin alterar archivos.
+SciPy se fijó en 1.14.1 para mantener compatibilidad con scikit-learn 1.6.1.
+Las limitaciones de los datos están explicadas en el README raíz.
+
+La entrega de Fase 2 fue `fd250f91`; las correcciones del entrenamiento están en
+`b668173`. Los metadatos nuevos guardan la huella del CSV, las versiones de las
+librerías, el commit base y la huella de los archivos de entrenamiento. v1 conserva
+sus metadatos originales.
+
+## Pruebas
+
+```bash
+python -m pytest -q
+```
+
+Pasan 14 casos con datos sintéticos: entrenamiento, persistencia, predicción,
+nulos, entradas inválidas, versiones y proporción configurable.
+
+## Docker
+
+Desde `fase-2/`, en Bash o zsh:
+
+```bash
+docker build -t modelos-fase2:1.0 .
+docker run --rm \
+  -v "$PWD/../data:/app/data:ro" -v "$PWD/models:/app/models" \
+  modelos-fase2:1.0 python train.py \
+  --data data/hotel_bookings.csv --target is_canceled \
+  --output-dir models --version v-docker --seed 42
+
+docker run --rm \
+  -v "$PWD/models:/app/models:ro" -v "$PWD/data:/app/data:ro" \
+  -v "$PWD/outputs:/app/outputs" \
+  modelos-fase2:1.0 python predict.py \
+  --version v1 --input data/ejemplo_prediccion.csv --output outputs/predicciones.csv
+```
+
+La imagen no entrena durante el build. Los montajes conservan modelos y salidas
+en el equipo anfitrión. Estos comandos se conservan de Fase 2; la nueva ejecución
+Docker queda pendiente para la integración, porque este equipo no tiene Docker.
