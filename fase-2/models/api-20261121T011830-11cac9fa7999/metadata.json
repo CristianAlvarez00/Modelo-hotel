@@ -1,0 +1,113 @@
+{
+  "version": "api-20261121T011830-11cac9fa7999",
+  "creado_utc": "2026-11-21T01:18:30.815217+00:00",
+  "problema": "clasificacion_binaria",
+  "objetivo": "is_canceled",
+  "algoritmo": "LogisticRegression",
+  "columnas": [
+    "lead_time",
+    "stays_in_weekend_nights",
+    "stays_in_week_nights",
+    "adults",
+    "children",
+    "babies",
+    "is_repeated_guest",
+    "previous_cancellations",
+    "previous_bookings_not_canceled",
+    "hotel",
+    "arrival_date_month",
+    "meal",
+    "country",
+    "market_segment",
+    "distribution_channel",
+    "reserved_room_type",
+    "customer_type"
+  ],
+  "tipos_esperados": {
+    "lead_time": "numerico",
+    "stays_in_weekend_nights": "numerico",
+    "stays_in_week_nights": "numerico",
+    "adults": "numerico",
+    "children": "numerico",
+    "babies": "numerico",
+    "is_repeated_guest": "numerico",
+    "previous_cancellations": "numerico",
+    "previous_bookings_not_canceled": "numerico",
+    "hotel": "texto",
+    "arrival_date_month": "texto",
+    "meal": "texto",
+    "country": "texto",
+    "market_segment": "texto",
+    "distribution_channel": "texto",
+    "reserved_room_type": "texto",
+    "customer_type": "texto"
+  },
+  "semilla": 42,
+  "umbral": 0.3,
+  "origen_umbral": "Fase 1: mejor F1 en validacion; fijo antes de prueba",
+  "datos": {
+    "archivo": "/Users/isabe/Documents/cristian/Modelo-hotel/data/hotel_bookings.csv",
+    "observaciones": 119390,
+    "grupos": 79243
+  },
+  "particion": {
+    "metodo": "GroupShuffleSplit sobre hash de las 17 entradas",
+    "test_size_grupos": 0.2,
+    "filas_entrenamiento": 95003,
+    "filas_prueba": 24387
+  },
+  "metrica_principal": "f1",
+  "metricas": {
+    "conjunto": "prueba",
+    "modelo": {
+      "accuracy": 0.730922212654283,
+      "precision": 0.5949054353382177,
+      "recall": 0.7944254835039818,
+      "f1": 0.6803390491036633
+    },
+    "baseline": {
+      "accuracy": 0.6395620617542133,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    }
+  },
+  "parametros": {
+    "regresion_logistica": {
+      "C": 1.0,
+      "class_weight": null,
+      "dual": false,
+      "fit_intercept": true,
+      "intercept_scaling": 1,
+      "l1_ratio": null,
+      "max_iter": 1000,
+      "multi_class": "deprecated",
+      "n_jobs": null,
+      "penalty": "l2",
+      "random_state": 42,
+      "solver": "lbfgs",
+      "tol": 0.0001,
+      "verbose": 0,
+      "warm_start": false
+    },
+    "baseline": {
+      "strategy": "most_frequent"
+    },
+    "imputacion_numerica": "median",
+    "imputacion_categorica": "Desconocido",
+    "codificacion": "OneHotEncoder(handle_unknown='ignore')",
+    "escalamiento": "StandardScaler"
+  },
+  "entorno": {
+    "python": "3.12.14",
+    "pandas": "2.2.3",
+    "numpy": "2.1.3",
+    "scipy": "1.14.1",
+    "scikit_learn": "1.6.1",
+    "joblib": "1.6.0",
+    "requirements": "fase-2/requirements.txt"
+  },
+  "codigo_sha256": "08fbbef035910945e1702c9c13bf70820daa35382fedacc8c6e047e0d2ca0b8c",
+  "codigo_commit_base": "d630f490de73dd69c7542ceb1335066fc356ad27",
+  "datos_sha256": "7c2ae42a7353905ea136e5c2287f17c92c5435826598bfbb8491c6f0c7b1fc06"
+}

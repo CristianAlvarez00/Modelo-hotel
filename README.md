@@ -222,3 +222,8 @@ Se usó un Git Flow simplificado con un único repositorio:
 ## Próximas fases
 
 Conversión del notebook en scripts de entrenamiento y predicción, despliegue de una API REST con Docker y monitoreo básico.
+
+## API REST
+
+La API y sus instrucciones de ejecución están en [fase-3/README.md](fase-3/README.md).
+La integración Docker de la API y el registro de Fase 4 están pendientes.
