@@ -1,8 +1,8 @@
 # Fase 3 – API de cancelación de reservas
 
-La API usa el entrenamiento y el pipeline guardado de Fase 2. Se implementaron
-las tres rutas y sus pruebas. Docker, el cliente y el registro de Fase 4 quedan
-pendientes de integración.
+La API usa el entrenamiento y el pipeline guardado de Fase 2. Incluye las tres
+rutas (`/health`, `/predict`, `/train`), pruebas automáticas, un Dockerfile y un
+cliente de prueba (`cliente.py`). El registro de solicitudes es de Fase 4.
 
 ## Ejecutar
 
@@ -49,6 +49,49 @@ los números se envían como números JSON y las categorías como texto. Se admi
 en ceros y se ignoran claves adicionales. No se necesita `is_canceled`.
 El esquema completo está en [Fase 2](../fase-2/README.md).
 
+## Docker
+
+Desde la raíz del repositorio (el contexto de construcción debe ser la raíz,
+porque la API usa `fase-2/` y `data/`):
+
+```bash
+docker build -f fase-3/Dockerfile -t hotel-api .
+docker run --rm -p 8000:8000 hotel-api
+```
+
+La imagen incluye las versiones `v1` y `v2` de `fase-2/models` y el CSV de
+`data/`, necesario para `/train`. Usa `v1` por defecto; para otra versión:
+
+```bash
+docker run --rm -p 8000:8000 -e MODELO_VERSION=v2 hotel-api
+```
+
+Las versiones creadas con `/train` se guardan dentro del contenedor y se pierden
+al detenerlo. Para conservarlas, montar la carpeta de modelos:
+
+```bash
+docker run --rm -p 8000:8000 -v "$(pwd)/fase-2/models:/app/fase-2/models" hotel-api
+```
+
+El contenedor corre un solo proceso de Uvicorn, como exige `/train`, y tiene un
+`HEALTHCHECK` que consulta `/health`.
+
+## Cliente de prueba
+
+`cliente.py` llama a `/health`, a `/predict` con `ejemplo_reserva.json`, a
+`/predict` sin el campo `hotel` (debe responder 422) y a `/train`. Imprime cada
+respuesta y termina con código 0 si todas fueron las esperadas. Con la API
+corriendo (con Uvicorn o Docker), desde la raíz:
+
+```bash
+python fase-3/cliente.py
+python fase-3/cliente.py --sin-train
+python fase-3/cliente.py --url http://127.0.0.1:8000 --reserva fase-3/ejemplo_reserva.json
+```
+
+Cada ejecución completa crea una versión `api-...` en `fase-2/models/`.
+Usa `httpx`, que ya está en `requirements.txt`.
+
 ## Configuración
 
 | Variable de entorno | Valor por defecto |
@@ -93,3 +136,5 @@ usando v1. Las versiones creadas en ensayos locales no se incluyen en Git.
 
 Se reutilizan `train.entrenar` y `src/prediccion.py` de Fase 2.
 Para las pruebas se usó [TestClient de FastAPI](https://fastapi.tiangolo.com/tutorial/testing/).
+
+El cliente (`cliente.py`) se verificó contra la API en ejecución, no con pytest.

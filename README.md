@@ -225,5 +225,11 @@ Conversión del notebook en scripts de entrenamiento y predicción, despliegue d
 
 ## API REST
 
-La API y sus instrucciones de ejecución están en [fase-3/README.md](fase-3/README.md).
-La integración Docker de la API y el registro de Fase 4 están pendientes.
+La API (`/health`, `/predict`, `/train`), su Dockerfile y el cliente de prueba
+están en [fase-3/](fase-3/README.md). Para ejecutarla con Docker, desde la raíz:
+
+```bash
+docker build -f fase-3/Dockerfile -t hotel-api .
+docker run --rm -p 8000:8000 hotel-api
+python fase-3/cliente.py
+```
