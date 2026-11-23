@@ -12,6 +12,9 @@ middleware.
 | `monitoreo.py` | Script que lee el registro y muestra las dos métricas |
 | `muestra_registro.csv` | Registro real de la ejecución descrita en el reporte |
 | `tests/test_monitoreo.py` | 14 pruebas con pytest |
+| `Dockerfile` | Imagen de la API con registro de solicitudes |
+| `REPORTE.md` | Reporte de la ejecución real |
+| `POLITICA_REENTRENAMIENTO.md` | Política de reentrenamiento |
 
 ## Ejecutar
 
@@ -48,10 +51,32 @@ Se mantienen las variables de Fase 3 (`MODELOS_DIR`, `MODELO_VERSION`, `DATOS_CS
 | `REGISTRO_CSV` | `fase-4/registros/solicitudes.csv` dentro del repositorio |
 
 El script de métricas usa la misma variable si no se le pasa `--registro`.
-Si la carpeta del registro no existe, se crea al primer evento. Para que el
-registro persista en Docker, la carpeta que contiene `REGISTRO_CSV` debe ser un
-montaje del equipo anfitrión; el comando exacto se documenta junto a la imagen
-de Fase 3.
+Si la carpeta del registro no existe, se crea al primer evento. Para que el registro persista en Docker, la carpeta que contiene `REGISTRO_CSV`
+debe ser un montaje del equipo anfitrión (ver la sección Docker).
+
+## Docker
+
+La imagen de esta fase arranca la API con el registro. Desde la raíz del
+repositorio (el contexto de construcción debe ser la raíz):
+
+```bash
+docker build -f fase-4/Dockerfile -t hotel-api-monitoreada .
+mkdir -p fase-4/registros
+docker run --rm -p 8000:8000 -v "$(pwd)/fase-4/registros:/app/fase-4/registros" hotel-api-monitoreada
+```
+
+Con el contenedor abierto, desde otra terminal:
+
+```bash
+python fase-3/cliente.py --sin-train
+python fase-4/monitoreo.py
+```
+
+El cliente envía una solicitud válida y una sin `hotel` (422), así que el script
+debe mostrar 2 solicitudes y 50,0 % de fallos si el registro estaba vacío. Sin el
+montaje (`-v`), el registro se pierde al detener el contenedor. En Linux, si hay
+error de permisos, la carpeta `fase-4/registros` del equipo debe ser escribible
+por el contenedor.
 
 ## Qué se registra
 
@@ -76,45 +101,7 @@ conserva entre ejecuciones. El encabezado se escribe solo al crear el archivo.
 
 ## Reporte
 
-Ejecución real del 21 de noviembre de 2026 (UTC), en local con Uvicorn, Python 3.12.10
-y `MODELO_VERSION=v1`, sobre un registro vacío. Se enviaron tres solicitudes a
-`POST /predict`:
-
-| Solicitud | Respuesta |
-| --- | --- |
-| Válida 1 (`fase-3/ejemplo_reserva.json`) | 200, predicción 1, versión `v1` |
-| Válida 2 (otra fila de `fase-2/data/ejemplo_prediccion.csv`) | 200, predicción 0, versión `v1` |
-| Sin el campo obligatorio `hotel` | 422, «Field required» para `hotel` |
-
-Registro resultante, guardado en [`muestra_registro.csv`](muestra_registro.csv):
-
-```csv
-fecha_hora,estado_http,version,prediccion
-2026-11-21T03:14:50+00:00,200,v1,1
-2026-11-21T03:14:50+00:00,200,v1,0
-2026-11-21T03:14:51+00:00,422,,
-```
-
-Salida de `python fase-4/monitoreo.py --registro <registro>`:
-
-```text
-Total de solicitudes: 3
-Solicitudes fallidas (HTTP 400 a 599): 1
-Porcentaje de fallos: 33,3 %
-```
-
-La API procesó dos reservas con `v1` y rechazó la tercera porque faltaba el campo
-`hotel`. La tasa de fallos fue 1/3 (33,3 %); el rechazo era el resultado esperado de
-la prueba de validación. Estas métricas describen el funcionamiento del servicio, no
-la calidad de las predicciones: medirla exigiría conocer si cada reserva se canceló
-realmente.
-
-Comprobaciones adicionales con la misma ejecución:
-
-- Con un registro vacío o solo con encabezado, el script muestra total 0 y «sin solicitudes».
-- Se detuvo el servidor y se reinició con `MODELO_VERSION=v2`; una solicitud válida
-  respondió con versión `v2` y quedó como cuarta fila. Las tres anteriores no cambiaron
-  ni se contaron dos veces, y el encabezado no se repitió (4 solicitudes, 25,0 % de fallos).
+Ver [REPORTE.md](REPORTE.md).
 
 ## Versiones del modelo
 
@@ -135,11 +122,7 @@ misma carpeta y no se activan automáticamente.
 
 ## Política de reentrenamiento
 
-Al reunir 500 reservas nuevas con su resultado real (cancelada o no), el equipo revisará
-el modelo. Una persona designada del equipo ejecutará `POST /train` para crear una
-candidata, y se compararán la versión activa y la candidata con el F1 sobre los mismos
-datos reservados, no usados para entrenar. La candidata se activa, cambiando
-`MODELO_VERSION` y reiniciando el servidor, solo si mejora el F1 de la versión activa.
+Ver [POLITICA_REENTRENAMIENTO.md](POLITICA_REENTRENAMIENTO.md).
 
 ## Pruebas
 
