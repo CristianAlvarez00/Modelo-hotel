@@ -222,3 +222,16 @@ Se usó un Git Flow simplificado con un único repositorio:
 ## Próximas fases
 
 Conversión del notebook en scripts de entrenamiento y predicción, despliegue de una API REST con Docker y monitoreo básico.
+
+## API REST y monitoreo
+
+La API (`/health`, `/predict`, `/train`), su Dockerfile y el cliente de prueba
+están en [fase-3/](fase-3/README.md). El registro de solicitudes, las métricas, el
+reporte y la política de reentrenamiento están en [fase-4/](fase-4/README.md).
+
+```bash
+docker build -f fase-4/Dockerfile -t hotel-api-monitoreada .
+docker run --rm -p 8000:8000 -v "$(pwd)/fase-4/registros:/app/fase-4/registros" hotel-api-monitoreada
+python fase-3/cliente.py --sin-train
+python fase-4/monitoreo.py
+```
