@@ -1,6 +1,6 @@
 # Predicción de cancelación de reservas hoteleras
 
-**Proyecto Integrador – Fase 1: Modelo Predictivo**
+**Proyecto Integrador – Modelo predictivo, API y monitoreo**
 Modelos y Simulación de Sistemas I · Universidad de Antioquia · 2026-II
 
 ## Integrantes del equipo
@@ -40,6 +40,9 @@ Modelo-hotel/
 ├── fase-1/
 │   ├── modelo_hotel.ipynb        # EDA, preparación, entrenamiento y evaluación
 │   └── modelo_hotel.joblib       # pipeline final + umbral de decisión
+├── fase-2/                      # entrenamiento y predicción por terminal
+├── fase-3/                      # API REST, cliente y Docker
+├── fase-4/                      # registro y métricas de operación
 ├── .gitignore
 └── README.md
 ```
@@ -219,19 +222,24 @@ Se usó un Git Flow simplificado con un único repositorio:
 - `develop`: rama de integración.
 - `feature/analisis-exploratorio`, `feature/tratamiento-datos`, `feature/modelo-predictivo`: una rama por tarea, integradas a `develop` mediante Pull Requests.
 
-## Próximas fases
+## Fases 2, 3 y 4
 
-Conversión del notebook en scripts de entrenamiento y predicción, despliegue de una API REST con Docker y monitoreo básico.
+- [Fase 2](fase-2/README.md): entrenamiento y predicción desde terminal, con las
+  versiones v1 y v2, sus métricas y metadatos.
+- [Fase 3](fase-3/README.md): API REST para consultar el modelo y entrenar una
+  candidata, con cliente de prueba y Docker.
+- [Fase 4](fase-4/README.md): registro persistente de predicciones, métricas de
+  operación, reporte y política de reentrenamiento.
 
-## API REST y monitoreo
-
-La API (`/health`, `/predict`, `/train`), su Dockerfile y el cliente de prueba
-están en [fase-3/](fase-3/README.md). El registro de solicitudes, las métricas, el
-reporte y la política de reentrenamiento están en [fase-4/](fase-4/README.md).
+Los README de cada fase contienen sus comandos de ejecución. Desde la raíz,
+con las dependencias de Fase 3 instaladas, la suite completa se ejecuta con:
 
 ```bash
-docker build -f fase-4/Dockerfile -t hotel-api-monitoreada .
-docker run --rm -p 8000:8000 -v "$(pwd)/fase-4/registros:/app/fase-4/registros" hotel-api-monitoreada
-python fase-3/cliente.py --sin-train
-python fase-4/monitoreo.py
+python -m pytest fase-2/tests fase-3/tests fase-4/tests -q
 ```
+
+## Identificación de la entrega
+
+Las Fases 3 y 4 se verificaron con las 37 pruebas y con la demostración local
+en Docker descrita en sus README. La etiqueta `entrega-fases-3-4` identifica
+esta revisión del repositorio.
