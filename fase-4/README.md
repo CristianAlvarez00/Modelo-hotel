@@ -1,152 +1,170 @@
-# Fase 4 – Monitoreo de la API
+# Fase 4: Monitoreo de la API
 
-Registra cada intento de `POST /predict` de la API de Fase 3 y calcula dos
-métricas de operación: el total de solicitudes y el porcentaje de fallidas.
-Fase 3 no se modifica: `api_monitoreada.py` importa su app y le agrega un
-middleware.
+Esta fase registra los intentos de predicción y permite comprobar qué versión
+del modelo se utilizó. El porcentaje de fallos describe el funcionamiento del
+servicio; para evaluar la calidad predictiva se necesitan resultados reales.
 
-| Archivo | Función |
-| --- | --- |
-| `api_monitoreada.py` | Punto de entrada: la API de Fase 3 con registro |
-| `registro.py` | Middleware que escribe una fila por solicitud a `/predict` |
-| `monitoreo.py` | Script que lee el registro y muestra las dos métricas |
-| `muestra_registro.csv` | Registro real de la ejecución descrita en el reporte |
-| `tests/test_monitoreo.py` | 14 pruebas con pytest |
-| `Dockerfile` | Imagen de la API con registro de solicitudes |
-| `REPORTE.md` | Reporte de la ejecución real |
-| `POLITICA_REENTRENAMIENTO.md` | Política de reentrenamiento |
+## Contenido
 
-## Ejecutar
+- `api_monitoreada.py`: API de Fase 3 con el registro habilitado.
+- `registro.py`: escritura de un evento por intento de predicción.
+- `monitoreo.py`: cálculo del total y el porcentaje de fallos.
+- `muestra_registro.csv`: registro usado en el reporte.
+- `tests/`: pruebas del registro y las métricas.
+- `Dockerfile`: imagen del servidor con monitoreo.
 
-Desde la raíz del repositorio, con Python 3.12 y las dependencias de Fase 3
-(`pip install -r fase-3/requirements.txt`). Los comandos se ejecutaron en
-PowerShell (Windows); entre paréntesis, el equivalente en Bash.
+## Ejecución local
 
-Arrancar la API con el registro y una versión del modelo identificada:
+Desde la raíz, con Python 3.12 y el entorno de Fase 3 activo:
 
-```powershell
-$env:MODELO_VERSION = "v1"   # Bash: export MODELO_VERSION=v1
-python -m uvicorn api_monitoreada:app --app-dir fase-4 --host 127.0.0.1 --port 8000
+```bash
+pip install -r fase-3/requirements.txt
+MODELO_VERSION=v1 python -m uvicorn api_monitoreada:app --app-dir fase-4 --host 127.0.0.1 --port 8000
 ```
 
-Con el servidor abierto, enviar solicitudes (por ejemplo con el JSON de
-`fase-3/ejemplo_reserva.json`, como se explica en el [README de Fase 3](../fase-3/README.md))
-y, desde otra terminal, calcular las métricas:
-
-```powershell
-python fase-4/monitoreo.py --registro fase-4/registros/solicitudes.csv
-python fase-4/monitoreo.py --help
-```
-
-Usar un solo proceso de Uvicorn: el registro se protege con un candado dentro
-del proceso.
-
-### Configuración
-
-Se mantienen las variables de Fase 3 (`MODELOS_DIR`, `MODELO_VERSION`, `DATOS_CSV`,
-`OBJETIVO`, `SEMILLA`, `TEST_SIZE`) y se agrega una:
+En PowerShell, asignar `$env:MODELO_VERSION = "v1"` antes del comando de Uvicorn.
+Se usa un solo proceso. La API conserva las rutas de Fase 3 y agrega el registro
+sin cambiar las respuestas de predicción.
 
 | Variable | Valor por defecto |
 | --- | --- |
 | `REGISTRO_CSV` | `fase-4/registros/solicitudes.csv` dentro del repositorio |
 
-El script de métricas usa la misma variable si no se le pasa `--registro`.
-Si la carpeta del registro no existe, se crea al primer evento. Para que el registro persista en Docker, la carpeta que contiene `REGISTRO_CSV`
-debe ser un montaje del equipo anfitrión (ver la sección Docker).
+También se mantienen las variables de [configuración de Fase 3](../fase-3/README.md).
+La carpeta se crea al registrar el primer evento. Para leerla desde otra terminal:
 
-## Docker
+```bash
+python fase-4/monitoreo.py --registro fase-4/registros/solicitudes.csv
+python fase-4/monitoreo.py --help
+```
 
-La imagen de esta fase arranca la API con el registro. Desde la raíz del
-repositorio (el contexto de construcción debe ser la raíz):
+## Registro y métricas
+
+El CSV se abre en modo agregar y su encabezado se escribe una sola vez. Se
+conserva entre ejecuciones y contiene estos campos:
+
+| Campo | Contenido |
+| --- | --- |
+| `fecha_hora` | Fecha y hora UTC con zona |
+| `estado_http` | Código HTTP devuelto |
+| `version` | Versión que predijo; puede quedar vacía en errores |
+| `prediccion` | 0 o 1; vacía cuando la entrada no produjo predicción |
+
+Se registra una fila por `POST /predict`, incluidas entradas inválidas, errores
+de JSON y modelo no disponible. No se guarda el contenido de la reserva ni se
+cuentan `/health` o `/train`. El script considera fallidas las respuestas de 400
+a 599. Con un registro vacío muestra total 0 y «sin solicitudes».
+
+## Docker y persistencia
+
+Desde la raíz, en Bash o zsh, con Docker instalado y en ejecución:
 
 ```bash
 docker build -f fase-4/Dockerfile -t hotel-api-monitoreada .
 mkdir -p fase-4/registros
-docker run --rm -p 8000:8000 -v "$(pwd)/fase-4/registros:/app/fase-4/registros" hotel-api-monitoreada
+docker run --rm --name hotel-monitoreo -p 8000:8000 \
+  --user "$(id -u):$(id -g)" \
+  -e MODELO_VERSION=v1 \
+  -v "$PWD/data:/app/data:ro" \
+  -v "$PWD/fase-2/models:/app/fase-2/models" \
+  -v "$PWD/fase-4/registros:/app/fase-4/registros" \
+  hotel-api-monitoreada
 ```
 
-Con el contenedor abierto, desde otra terminal:
+Los tres montajes permiten leer los datos, conservar las versiones creadas por
+`/train` y continuar el registro al volver a crear el contenedor. La opción
+`--user` permite escribir con el usuario del anfitrión. Para PowerShell, usar el
+comando en una línea, `${PWD}` en los montajes y omitir `--user`.
+
+Para repetir el ejemplo de tres intentos, usar un registro nuevo: añadir
+`-e REGISTRO_CSV=/app/fase-4/registros/ensayo-nuevo.csv` con un nombre que aún no
+exista. Con el servidor abierto, desde otra terminal en la raíz:
 
 ```bash
+curl -X POST http://localhost:8000/predict \
+  -H 'Content-Type: application/json' \
+  --data-binary @fase-3/ejemplo_reserva.json
 python fase-3/cliente.py --sin-train
-python fase-4/monitoreo.py
+python fase-4/monitoreo.py --registro fase-4/registros/ensayo-nuevo.csv
 ```
 
-El cliente envía una solicitud válida y una sin `hotel` (422), así que el script
-debe mostrar 2 solicitudes y 50,0 % de fallos si el registro estaba vacío. Sin el
-montaje (`-v`), el registro se pierde al detener el contenedor. En Linux, si hay
-error de permisos, la carpeta `fase-4/registros` del equipo debe ser escribible
-por el contenedor.
-
-## Qué se registra
-
-El archivo es un CSV abierto siempre en modo agregar, de modo que el historial se
-conserva entre ejecuciones. El encabezado se escribe solo al crear el archivo.
-
-| Columna | Contenido |
-| --- | --- |
-| `fecha_hora` | Fecha y hora en UTC con zona (`2026-11-21T03:14:50+00:00`) |
-| `estado_http` | Código HTTP de la respuesta |
-| `version` | Versión del modelo que predijo; vacía si hubo error |
-| `prediccion` | 1 = cancelación predicha, 0 = no cancelación; vacía si hubo error |
-
-- Se escribe **una fila por cada `POST /predict`**, incluidas las rechazadas por
-  validación (422), los JSON inválidos y los 503 por modelo no disponible. El
-  middleware espera la respuesta para conocer el código y por eso ve también los
-  rechazos que ocurren antes de entrar a la ruta.
-- No se registran otras rutas (`/health`, `/train`) ni otros métodos.
-- No se guarda el cuerpo de la solicitud: ningún dato de la reserva queda en el registro.
-- Si no se puede escribir el registro, se deja un mensaje en el log del servidor y
-  la API sigue respondiendo.
+El curl envía una reserva válida. El cliente envía otra válida y una sin `hotel`:
+en total son tres intentos. Para comprobar el reinicio, detener con
+`docker stop hotel-monitoreo`, repetir el arranque con los mismos montajes y
+confirmar que las filas anteriores se conservan antes de enviar nuevas reservas.
 
 ## Reporte
 
-Ver [REPORTE.md](REPORTE.md).
+El registro publicado en `muestra_registro.csv` se obtuvo el 23 de noviembre
+de 2026 (hora de Colombia) con la API en Docker. Contiene dos llamadas válidas
+con la reserva de ejemplo y una tercera sin `hotel`:
 
-## Versiones del modelo
+| Solicitudes | Código HTTP | Resultado |
+| --- | --- | --- |
+| Dos entradas válidas | 200 | Predicción y versión identificadas |
+| Una entrada sin `hotel` | 422 | Rechazo esperado de validación |
+
+```bash
+python fase-4/monitoreo.py --registro fase-4/muestra_registro.csv
+```
+
+Resultado: **3 solicitudes, 1 fallida y 33,3 % de fallos**. El fallo corresponde
+al rechazo previsto de la entrada incompleta; no es una medida del error del
+modelo. El registro conserva fecha, código, versión y predicción de cada intento.
+Las dos predicciones válidas fueron 1. Las fechas del CSV están en UTC.
+
+## Versiones y política de reentrenamiento
 
 | Versión | Ubicación | Uso |
 | --- | --- | --- |
 | `v1` | `fase-2/models/v1/` | Versión activa por defecto |
 | `v2` | `fase-2/models/v2/` | Alternativa seleccionable |
 
-Cada carpeta contiene `modelo.joblib`, `metrics.json` y `metadata.json`. La API usa la
-indicada en `MODELO_VERSION` (por defecto `v1`) y la devuelve en cada respuesta y en el
-registro. Para cambiar de versión, detener el servidor y arrancarlo con la variable;
-para volver a la anterior, repetir con `MODELO_VERSION=v1`.
+Las dos contienen modelo, métricas y metadatos. Se entrenaron con los mismos
+datos y configuración, con F1 de prueba 0,680; v2 demuestra la selección de
+versiones y no representa una mejora del algoritmo. Para cambiar, reiniciar con
+`MODELO_VERSION=v2`; para volver, usar `MODELO_VERSION=v1`.
 
-Ambas se entrenaron con la misma configuración (semilla 42, misma partición, F1 en
-prueba 0,680); `v2` sirve para demostrar el cambio de versión, no es un modelo distinto.
-Las versiones creadas con `POST /train` se guardan como `api-<fecha>-<sufijo>` en la
-misma carpeta y no se activan automáticamente.
-
-## Política de reentrenamiento
-
-Ver [POLITICA_REENTRENAMIENTO.md](POLITICA_REENTRENAMIENTO.md).
+Al reunir 500 reservas nuevas con resultado real, el equipo revisará el modelo.
+Una persona designada ejecutará `/train` y comparará el F1 de la candidata con
+el de la versión activa sobre los mismos datos reservados, no usados para ajustar.
+Solo se activará la candidata si mejora el F1; si presenta problemas, se volverá
+a la anterior mediante `MODELO_VERSION`.
 
 ## Pruebas
 
-Desde la raíz, con el entorno activo:
-
-```powershell
+```bash
 python -m pytest fase-2/tests fase-3/tests fase-4/tests -q
 ```
 
-Pasan 37 casos: 23 de Fases 2 y 3 y 14 de esta fase. Las de Fase 4 comprueban, con modelos
-pequeños en directorios temporales: tres solicitudes (dos válidas y una inválida) dejan
-exactamente tres filas y 33,3 %; los 422 por validación, los JSON inválidos, los cuerpos
-vacíos y los 503 dejan una fila cada uno; el registro persiste al reiniciar sin duplicar el
-encabezado; no se guarda el cuerpo; el middleware no cambia las respuestas de la API; y el
-script maneja el registro vacío y los archivos inválidos.
+Fase 4 tiene 14 casos: registro de válidas y rechazadas, JSON inválido, cuerpo
+vacío, modelo ausente, fecha con zona, persistencia sin duplicados, conservación
+de respuestas y cálculo de métricas. El registro se guarda en carpetas temporales.
+
+## Comprobación final
+
+Se construyeron las imágenes de Fases 3 y 4 en Docker Engine 29.10.0 sobre
+Linux ARM64, usando una máquina temporal de Lima en macOS. El 23 de noviembre
+de 2026 se comprobó que:
+
+- El cliente recibe los códigos esperados y el monitoreo muestra 3 intentos y 33,3 %.
+- `/train` conserva los artefactos en el montaje del anfitrión.
+- Al eliminar y recrear el contenedor, la candidata se puede cargar y el registro
+  conserva sus filas anteriores, con un solo encabezado.
+- Los archivos originales de v1 y v2 permanecen intactos.
+- Las 37 pruebas pasan también dentro de Docker. Se muestra un aviso de
+  deprecación de AnyIO usado por TestClient, sin fallos de pruebas.
+
+Etiqueta de la revisión comprobada: `entrega-fases-3-4`.
 
 ## Limitaciones
 
-- El porcentaje de fallos mide el servicio, no la calidad del modelo.
-- Un solo proceso de Uvicorn; con varios, las filas podrían intercalarse.
-- El registro crece sin límite; no hay rotación ni borrado.
-- Un `POST` a `/predict/` (con barra final) no se registra como intento de `/predict`.
+Se usa un solo proceso de Uvicorn y no hay rotación automática del registro.
+La ruta registrada es `POST /predict`; una llamada a `/predict/` con barra final
+puede recibir una redirección. Los errores de escritura del registro se informan
+en el log del servidor.
 
 ## Referencias
 
-- Middleware en FastAPI: <https://fastapi.tiangolo.com/tutorial/middleware/>
-- Middleware en Starlette (`BaseHTTPMiddleware`): <https://www.starlette.io/middleware/>
+Se utilizan el [middleware de FastAPI](https://fastapi.tiangolo.com/tutorial/middleware/)
+y `BaseHTTPMiddleware` de Starlette.
